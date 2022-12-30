@@ -8,10 +8,7 @@ customerData.map((val, index) =>
 export let DELETE_LISTENER = (id) => {
     fetch(`http://localhost:3000/api/clients/${id}`, {
         method: "DELETE",
-    })
-        //.catch(
-         //   (reason) => alert(`FAILED TO DELETE: ${reason}`)
-        //);
+    });
 }
 
 export let PATCH_LISTENER = (id) => {
@@ -23,13 +20,14 @@ export let PATCH_LISTENER = (id) => {
 
     let currentType = null;
     for (const child of contactList) {
-        if (child.tagName === "div") {
+        if (child.tagName.toLowerCase() === "div") {
             currentType = child.children[0].children[0].textContent; // костыльно, но работает
-        } else if (child.tagName === "input" && currentType) {
-            contactData.push({"type": currentType, "value": child.value});
+        } else if (child.tagName.toLowerCase() === "input" && currentType) {
+            contactData.push({'"type"': currentType, '"value"': child.value});
             currentType = null;
         }
     }
+    console.log(contactData);
 
     fetch(`http://localhost:3000/api/clients/${id}`, {
         method: "PATCH",
@@ -43,11 +41,13 @@ export let PATCH_LISTENER = (id) => {
             contactData
         })
     })
-        .then(() => {
-            DELETE_LISTENER(id);
+        .then((msg) => {
+            console.log(msg, id);
         })
         .catch(
-        (reason) => alert(`FAILED TO PATCH: ${reason}`)
+        (reason) => {
+            alert(`FAILED TO PATCH: ${reason}`);
+        }
     );
 
 };

@@ -113,9 +113,11 @@ function createModificationModal({id, contacts, lastName, name, surname}) {
     // replacing button listeners
     let button = document.getElementById("modal-form-submit");
     let newButton = button.cloneNode(true);
-    button.parentNode.replaceChild(button, newButton);
-    button.addEventListener("click", (e) => {
-        PATCH_LISTENER(id, contacts, surname, name, lastName);
+    button.parentNode.replaceChild(newButton, button);
+    newButton.addEventListener("click", (e) => {
+        e.preventDefault();
+
+        PATCH_LISTENER(id);
     });
 
     return button;
@@ -128,7 +130,6 @@ function setModalNameFields(surname, name, lastName) {
 }
 
 function createModalContactBar(selectedContact = "Vk", defaultValue = null) {
-    console.log(selectedContact);
     inputFieldCount++;
 
     let dropdownDiv = document.createElement("div");

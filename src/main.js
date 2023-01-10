@@ -1,11 +1,13 @@
 import {
-    createTable,
-    createModalNewClient,
-    setModalNameFields,
     clientForDeletion,
+    createAutocompleteListElement,
     createLoadingForClientsTable,
     createLoadingForSaveButtons,
-    createAutocompleteListElement
+    createModalNewClient,
+    createTable,
+    setModalNameFields,
+    displayErrorList,
+    removeLoadingForSaveButtons
 } from "./view.js";
 
 let selectedAutocompleteOptionNumber = -1;
@@ -15,6 +17,7 @@ let loadingTable = createLoadingForClientsTable();
 mainContainer.append(loadingTable);
 
 export let customerData = await (await fetch("http://localhost:3000/api/clients")).json();
+let filteredCustomers = [...customerData];
 
 loadingTable.remove();
 
@@ -92,15 +95,18 @@ export let PATCH_LISTENER = (id) => {
             contacts
         })
     })
-        .then(() => {
-            location.reload();
-        })
-        .catch(
-        (reason) => {
-            alert(`FAILED TO PATCH: ${reason}`);
-        }
-    );
-
+        .then((response) => {
+            if (response.status !== 200) {
+                Promise.reject(response.json())
+                    .catch(contentJson => contentJson.then(content => {
+                        displayErrorList(content);
+                        removeLoadingForSaveButtons(document.getElementById("modal-form-submit"));
+                    }));
+            } else {
+                location.hash = "";
+                location.reload();
+            }
+        });
 };
 
 function getDateAndTimeFromApi(elem) {
@@ -112,28 +118,9 @@ function getDateAndTimeFromApi(elem) {
 
 async function generatePage() {
     setEventListeners();
-    let formInputFields;
 
     createTable(customerData);
     createModalNewClient();
-
-    let addClientFromModal = document.getElementById("modal-form-submit");
-    addClientFromModal.addEventListener("click", (e) => {
-        e.preventDefault();
-        createLoadingForSaveButtons(addClientFromModal);
-
-        formInputFields = saveDataFromModal();
-
-        let data = {};
-        Object.entries(formInputFields).forEach((elem) => {
-            let [k, v] = elem;
-            if (v !== null) data[k] = v;
-            else data[k] = null;
-        });
-
-        if (!addNewClient(data)) alert('FAILED TO ADD NEW CLIENT');
-        else location.reload();
-    });
 
     openModalFromHash();
 }
@@ -160,32 +147,35 @@ function saveDataFromModal() {
 
 function displaySearchResult(input) {
     if (input.length <= 0) {
+        filteredCustomers = customerData;
+        document.querySelectorAll(".table__item").forEach(elem => elem.remove());
         createTable(customerData);
+
         return;
     }
 
     let foundCustomers = customerData.filter(customer =>
         (customer.surname + customer.name + customer.lastName).toLowerCase().includes(input.replaceAll(" ", "").toLowerCase())
     );
+    filteredCustomers = foundCustomers;
+    console.log(foundCustomers);
 
     document.querySelectorAll(".table__item").forEach(elem => elem.remove());
     createTable(foundCustomers);
 }
 
 function setEventListeners() {
+    let errorsDiv = document.getElementById("modal-errors");
+    let foundCustomers = [...customerData];
+    let formInputFields;
     let tmpLi;
-    let foundCustomers;
 
     let autoList = document.getElementById("autocomplete-list");
-    autoList.style.listStyle = "none";
-    autoList.style.width = "100%";
-    autoList.style.padding = "0";
-
     let input = document.getElementById("header-input");
 
     let timer;
     let throttleTimerHandler = () => {
-        displaySearchResult(document.getElementById("header-input").value);
+        displaySearchResult(input.value);
     };
 
     document.getElementById("header-input").addEventListener("input", () => {
@@ -202,21 +192,27 @@ function setEventListeners() {
         }
 
         foundCustomers = getFoundCustomers(input.value);
-        for (let i = 0; i < Math.min(autocompleteMAX, foundCustomers.length); i++) {
+        for (let i = 0; i < Math.min(10, foundCustomers.length); i++) {
             tmpLi = createAutocompleteListElement(foundCustomers[i]);
             tmpLi.id = "auto-li-" + i;
             tmpLi.addEventListener("click", (e) => {
                 // input.value = [foundCustomers[i].surname, foundCustomers[i].name,foundCustomers[i].lastName].join(" ");
                 input.value = foundCustomers[i];
+                input.focus();
                 throttleTimerHandler();
+                autoList.innerHTML = "";
             });
 
             autoList.append(tmpLi);
         }
+        autocompleteMAX = foundCustomers.length;
     });
 
     document.addEventListener("keydown", (e) => {
-        if (document.activeElement.tagName !== "LI" && document.activeElement.tagName !== "INPUT") return;
+        if ((document.activeElement.tagName !== "LI" && document.activeElement.tagName !== "INPUT") ||
+            document.activeElement.classList.contains("modal-form__item-input") ||
+            document.activeElement.classList.contains("modal__contact-item"))
+            return;
 
         let setInputValue = () => {
             let li = document.getElementById("auto-li-" + selectedAutocompleteOptionNumber);
@@ -226,28 +222,43 @@ function setEventListeners() {
 
         switch (e.key) {
             case "ArrowDown":
+                e.preventDefault();
+                if (selectedAutocompleteOptionNumber + 1 >= autocompleteMAX) return;
+
                 ++selectedAutocompleteOptionNumber;
                 setInputValue();
                 break;
 
             case "ArrowUp":
+                e.preventDefault();
+                if (selectedAutocompleteOptionNumber - 1 < 0) return;
+
                 --selectedAutocompleteOptionNumber;
                 setInputValue();
                 break;
 
             case "Backspace":
             case " ":
-                selectedAutocompleteOptionNumber = -1;
+                if (document.activeElement.tagName)
+                    selectedAutocompleteOptionNumber = -1;
                 input.focus();
                 break;
 
             case "Enter":
                 displaySearchResult(input.value);
+                autoList.innerHTML = "";
+                input.focus();
                 break;
         }
-    })
+    });
 
-    document.addEventListener("cancel", () => displaySearchResult(""));
+    input.addEventListener("focusout", (e) => {
+        console.log(document.activeElement.tagName);
+    }); // не получилось реализовать закрытие меню автодополнения при клике вне UL
+
+    document.addEventListener("cancel", () => {
+        displaySearchResult("");
+    });
 
     document.getElementById("header-form").addEventListener("submit", (e) => {
         e.preventDefault();
@@ -267,6 +278,40 @@ function setEventListeners() {
         location.reload();
     });
 
+    document.getElementById("modal-form-cancel").addEventListener("click", () => {
+        errorsDiv.innerHTML = "";
+        location.hash = "";
+    });
+
+    document.getElementById("close-modal").addEventListener("click", () => {
+        errorsDiv.innerHTML = "";
+        location.hash = "";
+    });
+
+    let addClientFromModal = document.getElementById("modal-form-submit");
+    addClientFromModal.addEventListener("click", (e) => {
+        e.preventDefault();
+
+        createLoadingForSaveButtons(addClientFromModal);
+
+        formInputFields = saveDataFromModal();
+
+        let data = {};
+        Object.entries(formInputFields).forEach((elem) => {
+            let [k, v] = elem;
+            if (v !== null) data[k] = v;
+            else data[k] = null;
+        });
+
+        addNewClient(data).then(response => {
+            if (Math.floor(response.status / 100) !== 2) {
+                response.json().then(content => displayErrorList(content));
+            } else location.reload();
+        });
+
+        removeLoadingForSaveButtons(addClientFromModal);
+    });
+
     for (const filterElem of Object.keys(sorts)) {
         let pElem = document.getElementById(filterElem);
         let arrow = pElem.children[pElem.children.length - 1].children[0];
@@ -278,12 +323,13 @@ function setEventListeners() {
             }
             arrow.style.transform = arrow.style.transform ? "" : "rotate(180deg)";
 
-            sortCustomers(filterElem, !!arrow.style.transform); // если есть transform - по возрастанию, если нет - по убыванию
+            sortCustomers(filterElem, filteredCustomers, !!arrow.style.transform); // если есть transform - по возрастанию, если нет - по убыванию
         });
     }
 }
 
 function getFoundCustomers(input) {
+    filteredCustomers = [];
     let res = [];
     let wordCount = input.split(" ").length > 3 ? 3 : input.split(" ").length;
     let getName = (wordCount, customer) => {
@@ -291,34 +337,36 @@ function getFoundCustomers(input) {
         return nameArr.join(" ").toLowerCase();
     }
 
-    for (const customer of customerData)
-        if (getName(wordCount, customer).includes(input.toLowerCase()))
+    for (const customer of customerData) {
+        if (getName(wordCount, customer).includes(input.toLowerCase())) {
             res.push(getName(wordCount, customer));
+            filteredCustomers.push(customer);
+        }
+    }
+
 
     if (res.length <= 0)
         for (const customer of customerData)
             if (getName(3, customer).includes(input.replaceAll(" ", "").toLowerCase()))
                 res.push(getName(3, customer));
 
-    return res;
+    if (filteredCustomers.length <= 0) filteredCustomers = [...customerData];
+
+    return Array.from(new Set(res));
 }
 
-function sortCustomers(filterName, isReversed = false) {
-    let dataCopy = [...customerData];
-
-    dataCopy.sort(sorts[filterName]);
-    if (isReversed) dataCopy = dataCopy.reverse();
+function sortCustomers(filterName, dataSortTarget, isReversed = false) {
+    dataSortTarget.sort(sorts[filterName]);
+    if (isReversed) dataSortTarget = dataSortTarget.reverse();
 
     for (let elem of document.querySelectorAll(".table__item"))
         elem.remove();
 
-    createTable(dataCopy);
+    createTable(dataSortTarget);
 }
 
 async function addNewClient({name, surname, lastName, contacts}) {
-    // todo validate all fields
-
-    let resp = await fetch("http://localhost:3000/api/clients", {
+    return await fetch("http://localhost:3000/api/clients", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -330,8 +378,6 @@ async function addNewClient({name, surname, lastName, contacts}) {
             contacts,
         }),
     });
-
-    return resp.status;
 }
 
 function openModalFromHash() {

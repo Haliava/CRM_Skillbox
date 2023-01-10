@@ -1,4 +1,10 @@
-import {createPencilSVG, createContactIconSVG, createCrossSVG, createArrowSVG, createCreatePopupRectWithText} from "./view-svg.js";
+import {
+    createPencilSVG,
+    createContactIconSVG,
+    createCrossSVG,
+    createArrowSVG,
+    createCreatePopupRectWithText
+} from "./view-svg.js";
 import {PATCH_LISTENER, getDateAndTimeFromApi} from "./main.js"
 
 export let inputFieldCount = 0;
@@ -114,6 +120,7 @@ function createModificationModal({id, contacts, lastName, name, surname}) {
     button.parentNode.replaceChild(newButton, button);
     newButton.addEventListener("click", (e) => {
         e.preventDefault();
+        location.hash = "#";
 
         createLoadingForSaveButtons(newButton);
         PATCH_LISTENER(id);
@@ -129,7 +136,6 @@ function setModalNameFields(surname, name, lastName) {
 }
 
 function createModalContactBar(selectedContact = "Vk", defaultValue = null) {
-
     let dropdownDiv = document.createElement("div");
     dropdownDiv.classList.add("dropdown");
 
@@ -178,7 +184,11 @@ function createModalContactBar(selectedContact = "Vk", defaultValue = null) {
     buttonClear.append(createCrossSVG("#B0B0B0"));
     buttonClear.addEventListener("click", () => {
         console.log(inputFieldCount);
-        if (inputFieldCount <= 1) return;
+        document.getElementById("add-contact-button-modal").disabled = false;
+        if (inputFieldCount <= 1) {
+            document.getElementById("add-contact-button-modal").classList.add("small-padding");
+            document.getElementById("modal-contact-list").classList.add("small-padding");
+        }
         --inputFieldCount;
 
         dropdownDiv.remove();
@@ -205,8 +215,9 @@ function createModalNewClient() {
     addContactButton.classList.add("small-padding");
     addContactButton.addEventListener("click", (e) => {
         console.log(inputFieldCount);
-        if (++inputFieldCount >= 10) {
+        if (++inputFieldCount > 10) {
             addContactButton.disabled = true;
+            --inputFieldCount;
             return;
         }
 
@@ -225,7 +236,6 @@ function createModalNewClient() {
     buttonText.textContent = "Добавить контакт";
 
     [plusSVG, buttonText].forEach(elem => addContactButton.append(elem));
-
     [divContainer, addContactButton].forEach(elem => mainContainer.append(elem));
 }
 
@@ -288,6 +298,12 @@ function createLoadingForSaveButtons(button) {
     button.style.height = "39px";
 }
 
+function removeLoadingForSaveButtons(button) {
+    button.style.backgroundColor = "#9873FF";
+    console.log(button);
+    button.children[0].children[0].remove();
+}
+
 function createAutocompleteListElement(customer) {
     let li = document.createElement("li");
     li.setAttribute("tabindex", "-1");
@@ -298,4 +314,39 @@ function createAutocompleteListElement(customer) {
     return li;
 }
 
-export {createTable, createModalNewClient, createContactEntry, setModalNameFields, createModificationModal, createLoadingForClientsTable, createLoadingForSaveButtons, createAutocompleteListElement}
+function createErrorMessage(message) {
+    let p = document.createElement("p");
+    p.classList.add("error-text");
+    p.textContent = message;
+
+    return p;
+}
+
+function displayErrorList(content) {
+    let errorDiv = document.getElementById("modal-errors");
+    errorDiv.innerHTML = "";
+
+    errorDiv.style.display = "block";
+
+    content.errors.forEach(error => {
+        errorDiv.append(createErrorMessage(error.message));
+    });
+
+    if (!content.errors) {
+        errorDiv.append(createErrorMessage("Что-то пошло не так"));
+    }
+}
+
+export {
+    createTable,
+    createModalNewClient,
+    createContactEntry,
+    setModalNameFields,
+    createModificationModal,
+    createLoadingForClientsTable,
+    createLoadingForSaveButtons,
+    removeLoadingForSaveButtons,
+    createAutocompleteListElement,
+    createErrorMessage,
+    displayErrorList
+}

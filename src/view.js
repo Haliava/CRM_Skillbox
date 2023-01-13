@@ -21,6 +21,9 @@ function createTable(customers) {
     });
 }
 
+/**
+ * Создаёт запись в таблице (то есть ячейки таблицы, где записаны данные одного клиента)
+ */
 function createCustomerEntry({contacts, createdAt, id, lastName, name, surname, updatedAt}) {
     createdAt = getDateAndTimeFromApi(createdAt.split("T"));
     updatedAt = getDateAndTimeFromApi(updatedAt.split("T"));
@@ -94,6 +97,9 @@ function createCustomerEntry({contacts, createdAt, id, lastName, name, surname, 
     return [divId, divName, divCreationDate, divModificationDate, contactListDiv, actionsListDiv];
 }
 
+/**
+ * Создаёт модальное окно, где можно изменить данные клиента
+ */
 function createModificationModal({id, contacts, lastName, name, surname}) {
     let label = document.getElementById("modal-label");
     label.textContent = "Изменить данные";
@@ -135,6 +141,9 @@ function setModalNameFields(surname, name, lastName) {
     document.getElementById("modal-lastName").value = lastName;
 }
 
+/**
+ * Создаёт полоску, которая появляется при нажании кнопки "Добавить контакт"
+ */
 function createModalContactBar(selectedContact = "Vk", defaultValue = null) {
     let dropdownDiv = document.createElement("div");
     dropdownDiv.classList.add("dropdown");
@@ -199,6 +208,9 @@ function createModalContactBar(selectedContact = "Vk", defaultValue = null) {
     return [dropdownDiv, contactInput, buttonClear];
 }
 
+/**
+ * Создаёт модальное окно с добавлением ноового пользователя
+ */
 function createModalNewClient() {
     let mainContainer = document.getElementById("modal-contact-list");
     mainContainer.classList.add("small-padding");
@@ -239,6 +251,9 @@ function createModalNewClient() {
     [divContainer, addContactButton].forEach(elem => mainContainer.append(elem));
 }
 
+/**
+ * Создаёт иконки контактов и их значения в столбце таблицы "Контакты"
+ */
 function createContactEntry(contactData) {
     let containerDiv = document.createElement("div");
     containerDiv.classList.add("popup");
@@ -254,6 +269,9 @@ function createContactEntry(contactData) {
     return containerDiv;
 }
 
+/**
+ * Создаёт индикатор загрузки
+ */
 function createSpinner() {
     let spinner = document.createElement("div");
     spinner.classList.add("spinner-border");
@@ -300,7 +318,6 @@ function createLoadingForSaveButtons(button) {
 
 function removeLoadingForSaveButtons(button) {
     button.style.backgroundColor = "#9873FF";
-    console.log(button);
     button.children[0].children[0].remove();
 }
 

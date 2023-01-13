@@ -25,12 +25,8 @@ let idToCustomerDict = {};
 for (const customer of customerData)
     idToCustomerDict[customer.id] = [customer.id, customer.contacts, customer.lastName, customer.name, customer.surname];
 
-/*
-arrow-sort-by-id
-arrow-sort-by-name
-arrow-sort-by-creation
-arrow-sort-by-modification
- */
+
+// Разные виды сортировок табличных записей
 let idSort = (a, b) => {
     return (a.id < b.id) - (a.id > b.id);
 }
@@ -60,6 +56,12 @@ let sorts = {
     "arrow-sort-by-modification": modifiedAtSort
 }
 
+let validators = {
+    "Телефон": (number) => number.match(/\+?[0-9]{11}/gi),
+    "Доп. Телефон": (number) => number.match(/\+?[0-9]{11}/gi),
+    "Email": (text) => text.match(/[a-zA-Z0-9]+@\w+\.\w+/gi),
+}
+
 export let DELETE_LISTENER = (id) => {
     fetch(`http://localhost:3000/api/clients/${id}`, {
         method: "DELETE",
@@ -67,6 +69,18 @@ export let DELETE_LISTENER = (id) => {
 }
 
 export let PATCH_LISTENER = (id) => {
+    document.querySelectorAll(".dropdown").forEach(elem => {
+        let contactName = elem.children[0].textContent;
+        let currentValue = elem.nextSibling.value;
+        if (Object.keys(validators).includes(contactName)) {
+            if (validators[contactName](currentValue) === null)
+                elem.nextSibling.style.background = "rgb(241,113,85, 0.2)";
+            else
+                elem.nextSibling.style.background = "";
+        }
+    });
+    return;
+
     let surname = document.getElementById("modal-surname").value;
     let name = document.getElementById("modal-name").value;
     let lastName = document.getElementById("modal-lastName").value;
@@ -109,6 +123,11 @@ export let PATCH_LISTENER = (id) => {
         });
 };
 
+/**
+ * Преобразует дату и время, полученные из API в более удобный вид:
+ * "2022-12-04" -> "04.12.2022"
+ * "20:48:10.680Z" -> "20:48"
+ */
 function getDateAndTimeFromApi(elem) {
     return [
         elem[0].split("-").reverse().join("."),  // Date
@@ -125,6 +144,10 @@ async function generatePage() {
     openModalFromHash();
 }
 
+/**
+ * Записывает данные об одном клиенте из модального окна в arrTo в виде,
+ * в котором получаются данные из API
+ */
 function saveDataFromModal() {
     let arrTo = {};
 
@@ -145,6 +168,10 @@ function saveDataFromModal() {
     return arrTo;
 }
 
+/**
+ * Показывает клиентов, которые совпадвют с данными из поисковой строки
+ * @param input - строка, записанная в header-input
+ */
 function displaySearchResult(input) {
     if (input.length <= 0) {
         filteredCustomers = customerData;
@@ -164,6 +191,9 @@ function displaySearchResult(input) {
     createTable(foundCustomers);
 }
 
+/**
+ * Инициализирует все eventListeners страницы
+ */
 function setEventListeners() {
     let errorsDiv = document.getElementById("modal-errors");
     let foundCustomers = [...customerData];
@@ -302,6 +332,7 @@ function setEventListeners() {
             if (v !== null) data[k] = v;
             else data[k] = null;
         });
+        console.log(data, "123");
 
         addNewClient(data).then(response => {
             if (Math.floor(response.status / 100) !== 2) {
@@ -328,6 +359,11 @@ function setEventListeners() {
     }
 }
 
+/**
+ * Показывает клиентов для autocomplete списка
+ * @param input - текст, введённый в header-input
+ * @returns {*[]} - массив имён подходящих клиентов
+ */
 function getFoundCustomers(input) {
     filteredCustomers = [];
     let res = [];
